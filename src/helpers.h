@@ -226,6 +226,8 @@ class WorldObject {
     double vy;
     double s;
     double d;
+    double d_prev;
+    double d_speed;
     enum Lane::laneNumber laneAssignment;
     double relativeVx;
     double relativeVy;
@@ -233,7 +235,13 @@ class WorldObject {
     double distance;
     double ttc;
     double speed;
+  //WorldModel world;
     vector<vector<double>> prediction;
+    vector<vector<double>*> maps;
+
+    WorldObject (vector<vector<double>*> worldMaps) {
+      maps = worldMaps;
+    }
 
     void update(WorldObject obj) {
       std::cout << "Updating car " << id << " with new info" << std::endl;
@@ -243,6 +251,11 @@ class WorldObject {
       vy = obj.vy;
       s = obj.s;
       d = obj.d;
+      vector<double> frenetVelocities = getFrenetVelocity(x, y, world->maps_x,
+                                                                world->maps_y,
+                                                                world->maps_s,
+                                                                world->maps_dx,
+                                                                world->maps_dy);
       if (laneAssignment != obj.laneAssignment) {
         std::cout << "Car "<< id << " has changed lanes from lane "
                   << laneAssignment << " to lane "
@@ -263,7 +276,7 @@ class WorldObject {
   private:
 
     vector<double> predict(double time) {
-      return {s + time * std::max(vx, vy), d + time * std::min(vx, vy)};
+      return {s + time * vs, d + time * vd};
     }
 };
 
@@ -272,17 +285,35 @@ class WorldModel {
     vector<WorldObject> cars;
     vector<Lane::LaneObject> lanes;
     Egocar* egocar;
+    vector<double>maps_x;
+    vector<double>maps_y;
+    vector<double>maps_s;
+    vector<double>maps_dx;
+    vector<double>maps_dy;
+    vector<vector<double>*> maps;
 
-    WorldModel (Egocar* pointer) {
+    WorldModel (Egocar* pointer, const vector<double>maps_x_in,
+                                 const vector<double>maps_y_in,
+                                 const vector<double>maps_s_in,
+                                 const vector<double>maps_dx_in,
+                                 const vector<double>maps_dy_in) {
       egocar = pointer;
+      maps_x = maps_x_in;
+      maps_y = maps_y_in;
+      maps_s = maps_s_in;
+      maps_dx = maps_dx_in;
+      maps_dy = maps_dy_in;
+      maps.push_back(&maps_x);
+      maps.push_back(&maps_y);
+      maps.push_back(&maps_dx);
+      maps.push_back(&maps_dy);
     }
     
-    void update(vector<vector<double>> sensor_fusion) {
-      vector<WorldObject> updatedCars;
+    void update(const vector<vector<double>> sensor_fusion) {
       // Format for each car: [ id, x, y, vx, vy, s, d]
       for (auto& detection:sensor_fusion) {
         // Copy over the data
-        WorldObject obj; 
+        WorldObject obj(maps); 
         obj.id = detection[0];
         obj.x  = detection[1];
         obj.y  = detection[2];
