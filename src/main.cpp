@@ -148,13 +148,13 @@ int main() {
           // inputs to transition function: predictions, map, speed limit, localization, current state
           switch (state) {
             case KEEP:
-              trajectories = generate_valid_trajectories()
-              for (auto& trajectory:trajectories) {
-                calculate_cost(trajectory);
-              }
+            //egocar.genTrajectories();
+            //for (auto& trajectory:trajectories) {
+            //  calculate_cost(trajectory);
+            //}
 
               // Select state associated with minimum cost
-              state = get_minimum_cost(trajectories);
+            //state = get_minimum_cost(trajectories);
 
               // If I'm already in target lane and going speed limit, stay here
               // If I'm already in target lane going too slow, consider passing car
@@ -169,7 +169,7 @@ int main() {
             case LEFT_PREP:
               // DO whatever we can 
               // Adjust speed to match gaps in left lane
-              if (safety_check_lane()) {
+              if (/*safety_check_lane()*/1) {
                 state = LEFT_CHANGE;
               }
               else {
@@ -177,7 +177,7 @@ int main() {
               }
               break;
             case LEFT_CHANGE:
-              while(!perform_lane_change());
+              while(/*!perform_lane_change()*/0);
               state = KEEP;
               break;
             case RIGHT_PREP:
