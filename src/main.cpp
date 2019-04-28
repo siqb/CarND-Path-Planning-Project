@@ -15,7 +15,6 @@ using std::vector;
 
 int main() {
   uWS::Hub h;
-
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
   vector<double> map_waypoints_x;
   vector<double> map_waypoints_y;
@@ -57,6 +56,10 @@ int main() {
     // "42" at the start of the message means there's a websocket message event.
     // The 4 signifies a websocket message
     // The 2 signifies a websocket event
+    static Egocar egocar;
+    static WorldModel world(&egocar, map_waypoints_x, map_waypoints_y,
+                                     map_waypoints_s, map_waypoints_dx,
+                                     map_waypoints_dy);
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
@@ -86,7 +89,15 @@ int main() {
 
           // Sensor Fusion Data, a list of all other cars on the same side 
           //   of the road.
+
+          // Looks like the simulator has hardcoded 12 cars
+          // and they never go out of view of the ego-car
           auto sensor_fusion = j[1]["sensor_fusion"];
+          std::cout << "[" << std::time(0) << "] - ";
+          for (auto meas:sensor_fusion) {
+            std::cout << meas[0] << " ";
+          }
+          std::cout << std::endl;
 
           json msgJson;
 
@@ -97,12 +108,14 @@ int main() {
            * TODO: define a path made up of (x,y) points that the car will visit
            *   sequentially every .02 seconds
            */
+          egocar.update(car_x, car_y, car_s, car_d, car_yaw, car_speed);
+          world.update(sensor_fusion);
 
-          double dist_inc = 0.5;
-          for (int i = 0; i < 50; ++i) {
-            next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
-            next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
-          }
+        //double dist_inc = 0.5;
+        //for (int i = 0; i < 50; ++i) {
+        //  next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
+        //  next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+        //}
 
 
 
@@ -119,33 +132,57 @@ int main() {
           //
           // 1. Get waypoint
 
-          next_waypoint = 
-          map_waypoints_x.
-          map_waypoints_y.
-          map_waypoints_s.
-          map_waypoints_dx.
-          map_waypoints_dy.
+        //next_waypoint = 
+        //map_waypoints_x.
+        //map_waypoints_y.
+        //map_waypoints_s.
+        //map_waypoints_dx.
+        //map_waypoints_dy.
 
-          // 2. Consider waypoint to be goal state
-          // 3. Calculate T based on how far waypoint is
 
-          double distance = std:pow(std::pow((next_waypoint_x - car_x), 2) + std::pow((next_waypoint_y - car_y), 2), 0.5); 
-          double T = distance/car_speed;
+        //// FSM
+        //// inputs to transition function: predictions, map, speed limit, localization, current state
+        //switch (state) {
+        //  case KEEP:
+        //    trajectories = generate_valid_trajectories()
+        //    for (auto& trajectory:trajectories) {
+        //      calculate_cost(trajectory);
+        //    }
 
-          // 4. Solve JMT coefficients for s and d for given T
+        //    // Select state associated with minimum cost
+        //    state = get_minimum_cost(trajectories);
 
-          vector<double> s_coeffs = solveCoeffs(start, end, T);
-          vector<double> d_coeffs = solveCoeffs(start, end, T);
+        //    // If I'm already in target lane and going speed limit, stay here
+        //    // If I'm already in target lane going too slow, consider passing car
+        //    //    But only if I have enough time to pull this off smoothly!
+        //    // If I'm not in target lane, change lanes
+        //    //    If lane change will make me slow down:
+        //    //      If I have lots of time, don't change lanes until later
+        //    //      If I dont have time, change regardless
 
-          // 4. Create multiple trajectories by solving trajectory equations from 0 to T
+        //    break;
 
-          vector<double> s_point = getTrajectoryPoint(T, s_coeffs);
-          M
-          vector<double> d_point = getTrajectoryPoint(T, d_coeffs);
-
-          // 5. Figure out how to apply costs to each trajctory
-          // 6. Figure out how to add collision avoidance
-          // 7. Choose a trajectory
+        //  case PREP_CHANGE_LEFT:
+        //    // DO whatever we can 
+        //    // Adjust speed to match gaps in left lane
+        //    if (safety_check_lane()) {
+        //      state = CHANGE_LEFT;
+        //    }
+        //    else {
+        //      state = KEEP;
+        //    }
+        //    break;
+        //  case CHANGE_LEFT:
+        //    while(!perform_lane_change());
+        //    state = KEEP;
+        //    break;
+        //  case PREP_CHANGE_RIGHT:
+        //    break;
+        //  case CHANGE_RIGHT:
+        //    break;
+        //  default:
+        //    break;
+        //}
 
 
           // Costs
@@ -190,21 +227,34 @@ int main() {
   h.run();
 }
 
-
-
-
-vector<double> getTrajectoryPoint(double t, vector<double> coeffs&) {
-  double a_0 = coeffs[0];
-  double a_1 = coeffs[1];
-  double a_2 = coeffs[2];
-  double a_3 = coeffs[3];
-  double a_4 = coeffs[4];
-  double a_5 = coeffs[5];
-  double pos = a_0 + a_1 * t + a_2 * t**2 + a_3 * t**3 + a_4 * t**4 + a_5 * t**5;
-  double velocity = a_1 + 2 * a_2 * t + 3 * a_3 * t**2 + 4 * a_4 * t**3 + 5 * a_5 * t**4;
-  double accel = 2 * a_2 + 6 * a_3 * t + 12 * a_4 * t**2 + 20 * a_5 * t**3;
-  return {pos, velocity, accel};
+double calculateCosts() {
+  double totalCost = 0; 
+  //totalCost = goal_distance_cost() + ineffieciency_cost();
+  return totalCost;
 }
+
+double goal_distance_cost(int goal_lane, int intended_lane, int final_lane, 
+                          double distance_to_goal) {
+  // The cost increases with both the distance of intended lane from the goal
+  //   and the distance of the final lane from the goal. The cost of being out 
+  //   of the goal lane also becomes larger as the vehicle approaches the goal.
+  int delta_d = 2.0 * goal_lane - intended_lane - final_lane;
+  double cost = 1 - exp(-(std::abs(delta_d) / distance_to_goal));
+
+  return cost;
+}
+
+double inefficiency_cost(int target_speed, int intended_lane, int final_lane, 
+                         const std::vector<int> &lane_speeds) {
+  // Cost becomes higher for trajectories with intended lane and final lane 
+  //   that have traffic slower than target_speed.
+  double speed_intended = lane_speeds[intended_lane];
+  double speed_final = lane_speeds[final_lane];
+  double cost = (2.0*target_speed - speed_intended - speed_final)/target_speed;
+
+  return cost;
+}
+
 
 vector<double> solveCoeffs(vector<double> &start, vector<double> &end, double T) {
   Eigen::MatrixXd m(3,3);
@@ -233,3 +283,50 @@ vector<double> solveCoeffs(vector<double> &start, vector<double> &end, double T)
   
   return {a0, a1, a2, a3, a4, a5};
 }
+
+vector<double> getTrajectoryPoint(double t, vector<double> coeffs) {
+  double a_0 = coeffs[0];
+  double a_1 = coeffs[1];
+  double a_2 = coeffs[2];
+  double a_3 = coeffs[3];
+  double a_4 = coeffs[4];
+  double a_5 = coeffs[5];
+  double pos = a_0 + a_1 * t
+                   + a_2 * std::pow(t, 2) 
+                   + a_3 * std::pow(t, 3)
+                   + a_4 * std::pow(t, 4)
+                   + a_5 * std::pow(t, 5);
+  double velocity = a_1 + 2 * a_2 * t
+                        + 3 * a_3 * std::pow(t, 2)
+                        + 4 * a_4 * std::pow(t, 3)
+                        + 5 * a_5 * std::pow(t, 4);
+  double accel = 2 * a_2 + 6 * a_3 * t 
+                         + 12 * a_4 * std::pow(t, 2)
+                         + 20 * a_5 * std::pow(t, 3);
+  return {pos, velocity, accel};
+}
+
+vector<double> getValidTrajectories(){
+  // 2. Consider waypoint to be goal state
+  // 3. Calculate T based on how far waypoint is
+
+//double distance = std:pow(std::pow((next_waypoint_x - car_x), 2) + std::pow((next_waypoint_y - car_y), 2), 0.5); 
+//double T = distance/car_speed;
+
+  // 4. Solve JMT coefficients for s and d for given T
+
+//vector<double> s_coeffs = solveCoeffs(start, end, T);
+//vector<double> d_coeffs = solveCoeffs(start, end, T);
+
+  // 4. Create multiple trajectories by solving trajectory equations from 0 to T
+
+//vector<double> s_point = getTrajectoryPoint(T, s_coeffs);
+//vector<double> d_point = getTrajectoryPoint(T, d_coeffs);
+
+  // 5. Figure out how to apply costs to each trajctory
+  // 6. Figure out how to add collision avoidance
+  // 7. Choose a trajectory
+  return {0.0};
+}
+
+
