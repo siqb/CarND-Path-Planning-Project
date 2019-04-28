@@ -13,6 +13,14 @@ using nlohmann::json;
 using std::string;
 using std::vector;
 
+enum FsmState {
+  KEEP,
+  LEFT_PREP,
+  LEFT_CHANGE,
+  RIGHT_PREP,
+  RIGHT_CHANGE
+};
+
 int main() {
   uWS::Hub h;
   // Load up map values for waypoint's x,y,s and d normalized normal vectors
@@ -60,6 +68,8 @@ int main() {
     static WorldModel world(&egocar, map_waypoints_x, map_waypoints_y,
                                      map_waypoints_s, map_waypoints_dx,
                                      map_waypoints_dy);
+    static FsmState state;
+
     if (length && length > 2 && data[0] == '4' && data[1] == '2') {
 
       auto s = hasData(data);
@@ -156,23 +166,23 @@ int main() {
 
               break;
 
-            case PREP_CHANGE_LEFT:
+            case LEFT_PREP:
               // DO whatever we can 
               // Adjust speed to match gaps in left lane
               if (safety_check_lane()) {
-                state = CHANGE_LEFT;
+                state = LEFT_CHANGE;
               }
               else {
                 state = KEEP;
               }
               break;
-            case CHANGE_LEFT:
+            case LEFT_CHANGE:
               while(!perform_lane_change());
               state = KEEP;
               break;
-            case PREP_CHANGE_RIGHT:
+            case RIGHT_PREP:
               break;
-            case CHANGE_RIGHT:
+            case RIGHT_CHANGE:
               break;
             default:
               break;
