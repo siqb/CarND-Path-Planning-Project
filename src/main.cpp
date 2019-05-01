@@ -142,13 +142,14 @@ int main() {
           //
           // 1. Get waypoint
 
+          int next_wp = NextWaypoint(car_x, car_y, car_yaw, map_waypoints_x, map_waypoints_y); 
 
 
           // FSM
           // inputs to transition function: predictions, map, speed limit, localization, current state
           switch (state) {
             case KEEP:
-            //egocar.genTrajectories();
+              egocar.genTrajectories();
             //for (auto& trajectory:trajectories) {
             //  calculate_cost(trajectory);
             //}

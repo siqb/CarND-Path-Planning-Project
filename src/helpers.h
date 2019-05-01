@@ -173,28 +173,6 @@ vector<double> getFrenetVelocity(double x, double y,
   return {vs, vd};
 }
 
-class Egocar {
-
-  public:
-    double x;
-    double y;
-    double s;
-    double d;
-    double yaw;
-    double speed;
-
-    void update(double car_x, double car_y, double car_s,
-                double car_d, double car_yaw, double car_speed) {
-      x = car_x;
-      y = car_y;
-      s = car_s;
-      d = car_d;
-      yaw = car_yaw;
-      speed = car_speed;
-    }
-
-};
-
 namespace Lane {
     enum laneNumber {
       LANE_RIGHT,
@@ -217,6 +195,57 @@ namespace Lane {
         vector<vector<double>> openStretches;
     };
 }
+class Egocar {
+
+  public:
+    double x;
+    double y;
+    double s;
+    double d;
+    double yaw;
+    double speed;
+    enum Lane::laneNumber laneAssignment;
+    vector<vector<double>> trajectories;
+
+    void update(double car_x, double car_y, double car_s,
+                double car_d, double car_yaw, double car_speed) {
+      x = car_x;
+      y = car_y;
+      s = car_s;
+      d = car_d;
+      yaw = car_yaw;
+      speed = car_speed;
+    }
+
+    void genTrajectories() {
+      // Straight
+      vector<double> traj;
+      for (uint8_t secs; secs < time; secs++) {
+
+        
+      }
+
+      // Right
+      if (laneAssignment != Lane::laneNumber::LANE_RIGHT) {
+        predict(10
+
+      }
+      // Left
+      if (laneAssignment != Lane::laneNumber::LANE_LEFT) {
+
+      }
+
+    }
+
+  private:
+
+    void predict(uint8_t duration, vector<vector<double>>& prediction) {
+      for (int i = 0; i < duration; i++) {
+        prediction.push_back({s + i * vs, d + i * vd});
+      }
+    }
+};
+
 class WorldObject {
   public:
     int id;
